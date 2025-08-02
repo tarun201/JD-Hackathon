@@ -8,54 +8,15 @@ const { getVideoDuration, getFrameCount } = require('../utils/videoProcessing.js
 const { getRabbitMQChannel, sendToQueue, runConsumer } = require('../rabbitMq/connection.js');
 const { createframeInsertTemplate, rabbitMqQueues, tableMap } = require('../utils/lib.js');
 const { insertMany } = require('../utils/dbQueries.js');
-const { uploadToS3 } = require('../utils/aws.js');
+const { uploadToS3, uploadVideoToS3 } = require('../utils/aws.js');
+const { processVideo } = require('../utils/videoConvertor.js');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-const outputDir = path.join(process.cwd(), 'frames');
-if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-}
 
-const video = 'https://www.sample-videos.com/video321/mp4/240/big_buck_bunny_240p_1mb.mp4'
+
+const video = path.join(process.cwd(), 'app/uploads/test.mp4');;
 const frameLimit = 5;
-
-
-
-// function detectSilentAudio(videoPath) {
-//     return new Promise((resolve, reject) => {
-//         let silenceDetected = [];
-
-//         ffmpeg(videoPath)
-//             .audioFilters('silencedetect=n=-50dB:d=0.5')
-//             .format('null')
-//             .on('stderr', (stderrLine) => {
-//                 if (stderrLine.includes('silence_start:')) {
-//                     const match = stderrLine.match(/silence_start: ([\d\.]+)/);
-//                     if (match) silenceDetected.push({ type: 'start', time: parseFloat(match[1]) });
-//                 }
-//             })
-//             .on('end', () => {
-//                 resolve({ isMostlySilent: silenceDetected.length > 0, silenceDetected });
-//             })
-//             .save('/dev/null'); // Use 'NUL' on Windows
-//     });
-// }
-
-// detectSilentAudio('testvideo.mp4').then(result => {
-//     console.log('Res: ', result);
-// })
-
-// async function getVideoDuration(inputPath) {
-//     return new Promise((resolve, reject) => {
-//         ffmpeg.ffprobe(inputPath, (err, metadata) => {
-//             if (err) return reject(err);
-//             // metadata.format.duration is in seconds (float)
-//             resolve(metadata.format.duration);
-//         });
-//     });
-// }
-
 
 async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId) {
 
@@ -172,20 +133,26 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId) {
     const fps = 1; // frames-per-second, e.g., every 200ms
     try {
         await getRabbitMQChannel();
-        const duration = await getVideoDuration(video);
-        console.log('duration: ', duration);
 
-        const expectedFrameCount = await getFrameCount(duration, fps);
-        console.log('expected: ', expectedFrameCount);
 
-        i = 0;
-        while (true) {
-            i++;
-            await extractFramesWithProcessing(video, outputDir, fps, '688e45c5ff84a90c518b5dfb');
+        const ogVideoId = '688e45c5ff84a90c518b5dfb'
+
+        const videoFolder = `/chunks/${ogVideoId}`;
+        const outputDir = path.join(process.cwd(), videoFolder);
+        if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir, { recursive: true });
         }
-        await extractFramesWithProcessing(video, outputDir, fps, '688e45c5ff84a90c518b5dfb');
 
-        // console.log('All frames processed!');
+        const videoChunks = await processVideo(video, outputDir, ogVideoId);
+
+        for (const chunk of videoChunks) {
+            const newChunkName = `${ogVideoId}_${path.basename(chunk)}`;
+            const res = await uploadVideoToS3(chunk, `group15/${path.basename(newChunkName)}`);
+
+            await sendToQueue(rabbitMqQueues.framePreProcessing, { videoId: ogVideoId, chunkId: newChunkName, url: res })
+        }
+
+        console.log('All frames processed!');
     } catch (err) {
         console.error('Error:', err);
     }
