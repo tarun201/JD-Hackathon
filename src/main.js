@@ -138,7 +138,7 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId) {
 
         const ogVideoId = '688ea38e943ed6d4066a2d0c';
 
-        const videoFolder = `/${ogVideoId}/`;
+        const videoFolder = `chunks/${ogVideoId}/`;
         const outputDir = path.join(process.cwd(), videoFolder);
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
