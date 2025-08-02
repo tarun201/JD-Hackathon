@@ -1,0 +1,5 @@
+node_modules
+uploads
+frames
+video_db.json
+*.log

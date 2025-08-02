@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Past uploaded Videos</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    .item { padding: 1rem; border-bottom: 1px solid #ccc; }
+    .item-title { font-weight: bold; font-size: 1.1rem; }
+    .item-description { color: #666; }
+  </style>
+</head>
+<body>
+
+  <h1>Past uploaded Videos</h1>
+  <ul id="item-list"></ul>
+
+  <script>
+    // Fetch items from backend and render them
+    fetch('/items')
+      .then(response => response.json())
+      .then(items => {
+        const list = document.getElementById('item-list');
+        items.forEach(item => {
+          const li = document.createElement('li');
+          li.className = 'item';
+          if(item.file_status == 0)
+	  {
+		status = 'Pending';	
+	  }
+	  else if(item.file_status == 1)
+	  {
+		status = 'In progress';  	
+	  }
+	  else if(item.file_status == 2)
+          {
+           	status = 'In validation';       
+          }
+	  else if(item.file_status == 3)
+          {
+           	status = 'In ML';       
+          }
+	  else if(item.file_status == 4)
+          {
+           	status = 'Completed';       
+          }
+          li.innerHTML = `
+            <div class="item-title">${item.filename}</div>
+            <div class="item-description">${item.upload_date}</div>
+	    <div class="item-title">${item.decision}</div>
+            <div class="item-description">${item.detailed_issue_detected}</div>
+            <div class="item-title">${item.filename}</div>
+            <div class="item-description">${status}</div>
+          `;
+          list.appendChild(li);
+        });
+      })
+      .catch(err => console.error('Failed to load items:', err));
+  </script>
+
+</body>
+</html>

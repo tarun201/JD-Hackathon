@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Group 15 Video Checker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="max-w-4xl mx-auto py-10 px-4">
+    <h1 class="text-3xl font-bold text-center mb-8">🎥 Group 15 Video Checker</h1>
+
+    <form id="uploadForm" class="bg-white p-6 rounded-xl shadow-md mb-6">
+      <label class="block text-lg font-semibold mb-2">Upload Videos</label>
+      <input type="file" name="videos" id="videoInput" multiple accept="video/*"
+             class="w-full mb-4 border border-gray-300 p-2 rounded-md"/>
+      <button type="submit"
+              class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        Upload and Check
+      </button>
+    </form>
+
+    <div id="results" class="space-y-6"></div>
+  </div>
+
+  <script>
+    const uploadForm = document.getElementById('uploadForm');
+    const videoInput = document.getElementById('videoInput');
+    const resultsContainer = document.getElementById('results');
+
+    uploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const files = videoInput.files;
+      if (files.length === 0) return alert('Please select at least one video.');
+
+      const formData = new FormData();
+      for (const file of files) {
+        formData.append('videos', file);
+      }
+
+      const response = await fetch(files.length === 1 ? '/upload' : '/upload-bulk', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      resultsContainer.innerHTML = '';
+
+      if (files.length === 1) {
+        renderResult(data.file, data.results);
+      } else {
+        for (const fileName in data) {
+          renderResult(fileName, data[fileName]);
+        }
+      }
+    });
+
+    function renderResult(fileName, checks) {
+      const resultBox = document.createElement('div');
+      resultBox.className = 'bg-white p-4 rounded-xl shadow';
+
+      resultBox.innerHTML = `
+        <h2 class="text-xl font-semibold mb-2">${fileName}</h2>
+        <ul class="space-y-1 text-sm">
+          ${Object.entries(checks).map(([check, result]) => {
+            const color = result === true || result === 'ok' || result === 'clear' || result === 'motion' || result === '16:9' ? 'text-green-600' : 'text-red-600';
+            return `<li><strong>${check}:</strong> <span class="${color}">${result}</span></li>`;
+          }).join('')}
+        </ul>
+      `;
+      resultsContainer.appendChild(resultBox);
+    }
+  </script>
+</body>
+</html>
