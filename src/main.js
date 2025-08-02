@@ -1,16 +1,24 @@
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp');
 
 const ffmpegPath = require('ffmpeg-static');
 const { getVideoDuration, getFrameCount } = require('../utils/videoProcessing.js');
 const { getRabbitMQChannel, sendToQueue, runConsumer } = require('../rabbitMq/connection.js');
-const { createframeInsertTemplate, rabbitMqQueues } = require('../utils/lib.js');
+const { createframeInsertTemplate, rabbitMqQueues, tableMap } = require('../utils/lib.js');
 const { insertMany } = require('../utils/dbQueries.js');
+const { uploadToS3 } = require('../utils/aws.js');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-const video = 'https://stream.jdmagicbox.com/comp/hls/9999p5872.5872.190119234430.h2z4_5ezohiqfh05xemh.m3u8'
+const outputDir = path.join(process.cwd(), 'frames');
+if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+}
+
+const video = 'https://www.sample-videos.com/video321/mp4/240/big_buck_bunny_240p_1mb.mp4'
+const frameLimit = 5;
 
 
 
@@ -49,9 +57,8 @@ const video = 'https://stream.jdmagicbox.com/comp/hls/9999p5872.5872.19011923443
 // }
 
 
-async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId, onFrameAsync) {
-    // Ensure output directory exists
-    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId) {
+
 
     return new Promise((resolve, reject) => {
         let frameIdx = 1;
@@ -70,7 +77,7 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId, o
         let frameBatch = [];
         let insertManyArr = [];
 
-        const myid = videoId || 'videoId'
+        const myid = videoId;
 
         ffmpeg(inputPath)
             .outputOptions([`-vf`, `fps=${fps},showinfo`])
@@ -85,9 +92,10 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId, o
                     const frameEpochMs = Math.round(timestamp * 1000);
 
                     const tempName = path.join(outputDir, `temp_${String(idx).padStart(6, '0')}.jpg`);
-
                     const frameId = `${myid}_${String(idx)}_${frameEpochMs}.jpg`;
                     const framePath = path.join(outputDir, frameId);
+                    // console.log('frampath: ', framePath);
+
 
                     // const framePath = path.join(outputDir, `frame_${String(idx).padStart(6, '0')}.jpg`);
                     pending++;
@@ -96,16 +104,30 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId, o
                         try {
                             if (fs.existsSync(tempName)) {
                                 // Rename temp file to custom-named file
-                                fs.renameSync(tempName, frameId);
+                                fs.renameSync(tempName, framePath);
+
+                                // const imageBuffer = fs.readFileSync(framePath);
+                                // const prev = imageBuffer.toString('base64');
+                                // console.log(prev.length);
+                                // console.log('***************************************************************')
+                                // const compressedBufferString = (await sharp(imageBuffer).resize(500,500).toBuffer()).toString('base64');
+                                // imageBuffer.toString('base64');
+
+                                // const s3Url = await uploadToS3(framePath, `group15/${frameId}`);
+
+                                // console.log(s3Url);
+                                // process.exit(0)
 
                                 const frameInsertObj = createframeInsertTemplate(videoId, frameId);
 
                                 insertManyArr.push(frameInsertObj)
-                                frameBatch.push({ videoId, "frame_id": frameId, "image": framePath })
+
+
+                                frameBatch.push({ videoId, "frame_id": frameId, "image": video })
 
                                 // Add to batch
-                                if (frameBatch.length === 40) {
-                                    await insertMany(insertManyArr)
+                                if (frameBatch.length === frameLimit) {
+                                    const insertManyRes = await insertMany(tableMap.frameTable, insertManyArr);
                                     await sendToQueue(rabbitMqQueues.framePreProcessing, { frames: frameBatch })
                                     frameBatch = [];
                                     insertManyArr = [];
@@ -124,9 +146,14 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId, o
             })
             .on('error', reject)
             .on('end', async () => {
-                if (frameBatch.length > 0) {
-                    await insertMany(insertManyArr)
-                    await sendToQueue(rabbitMqQueues.framePreProcessing, { frames: frameBatch })
+                if (frameBatch.length > 0 && insertManyArr.length > 0) {
+                    // const insertManyRes = await insertMany(tableMap.frameTable, insertManyArr);
+
+                    const queueRes = await sendToQueue(rabbitMqQueues.framePreProcessing, { frames: frameBatch })
+                    // if (insertManyRes?.insertedIds?.length) {
+                    //     console.log('Inserted frames;');
+
+                    // }
                     frameBatch = [];
                     insertManyArr = [];
                 }
@@ -140,28 +167,24 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId, o
 
 // Usage
 (async () => {
-    const outputDir = path.join(__dirname, 'frames');
-    const fps = 5; // frames-per-second, e.g., every 200ms
+    // const outputDir = path.join(__dirname, 'frames');
+
+    const fps = 1; // frames-per-second, e.g., every 200ms
     try {
-
-        // const db = await getMongoDb();
-        // const res = await db.collection('tbl_video_uploads').findOne();
-        // console.log(res);
-
-        // await getRabbitMQChannel();
-
-        // await sendToQueue('framePreProcessing', 'test message');
-
-        // await runConsumer()
-        // process.exit();
-
+        await getRabbitMQChannel();
         const duration = await getVideoDuration(video);
         console.log('duration: ', duration);
 
         const expectedFrameCount = await getFrameCount(duration, fps);
         console.log('expected: ', expectedFrameCount);
 
-        await extractFramesWithProcessing(video, outputDir, fps, analyzeFrame);
+        i = 0;
+        while (true) {
+            i++;
+            await extractFramesWithProcessing(video, outputDir, fps, '688e45c5ff84a90c518b5dfb');
+        }
+        await extractFramesWithProcessing(video, outputDir, fps, '688e45c5ff84a90c518b5dfb');
+
         // console.log('All frames processed!');
     } catch (err) {
         console.error('Error:', err);

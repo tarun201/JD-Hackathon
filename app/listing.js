@@ -1,4 +1,4 @@
-const {getMongoDb} = require('../../video-checker/db/connection')
+const {getMongoDb} = require('../db/connection')
 
 
 let ll = function () { };

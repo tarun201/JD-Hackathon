@@ -14,6 +14,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# RUN npm install axios 
+
 RUN npm install -g nodemon
 
 COPY . .
@@ -25,4 +27,4 @@ COPY . .
 
 EXPOSE 3030
 
-CMD ["nodemon", "index.js"]
+CMD ["node", "index.js"]

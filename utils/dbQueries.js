@@ -1,4 +1,5 @@
 const { getMongoDb } = require("../db/connection");
+const { tableMap } = require("./lib");
 
 const tbl_video_uploads = 'tbl_video_uploads';
 const frameTable = 'tbl_video_frame_uploads';
@@ -27,7 +28,7 @@ const insertOne = async (collection, insertObj) => {
         }
         return null;
     } catch (error) {
-        console.error('Error in findone: ', error)
+        console.error('Error in insertOne: ', error)
         return null;
     }
 }
@@ -35,28 +36,61 @@ const insertOne = async (collection, insertObj) => {
 const insertMany = async (collection, insertArr) => {
     try {
         const db = await getMongoDb();
-        const result = await db.collection(collection).insertMany(insertArr);
+        const result = await db.collection(collection).insertMany(insertArr, { ordered: false });
+
         if (result?.insertedIds?.length) {
             return result;
         }
         return null;
     } catch (error) {
-        console.error('Error in findone: ', error)
+        console.error('Error in insertMany: ', error)
         return null;
     }
 }
 
-const updateOne = async (collection, query, setObj) => {
+// const updateMany = async (collection, filter, pipeline) => {
+//     try {
+//         const db = await getMongoDb();
+//         const result = await db.collection(collection).updateMany(filter, { $set: pipeline });
+
+//         if (result?.insertedIds?.length) {
+//             return result;
+//         }
+//         return null;
+//     } catch (error) {
+//         console.error('Error in updateMany: ', error)
+//         return null;
+//     }
+// }
+
+const updateOne = async (collection, query, pipeline) => {
     try {
         const db = await getMongoDb();
-        const result = await db.collection(collection).updateOne(query, { $set: setObj });
+        const result = await db.collection(collection).updateOne(query, pipeline);
         return {
             success: result?.acknowledged || false,
             modifiedCount: result?.modifiedCount || 0,
             matchedCount: result?.matchedCount || 0
         }
     } catch (error) {
-        console.error('Error in findone: ', error)
+        console.error('Error in updateOne: ', error)
+        return null;
+    }
+}
+
+const findOneAndUpdate = async (collection, filter, pipeline, options) => {
+    try {
+        if (!options?.returnDocument) {
+            options.returnDocument = 'after';
+        }
+        const result = await db.collection(collection).findOneAndUpdate(filter, pipeline, options);
+        if (result.value) { // The updated document is in the 'value' property
+            console.log('Successfully updated and retrieved frame:');
+            console.log(result.value);
+            return result.value;
+        }
+    } catch (error) {
+        console.error('Error in findOneAndUpdate: ', error);
         return null;
     }
 }
@@ -119,7 +153,7 @@ const updateMongoSanity = async (failed, videoId, filehash, { blankFrames, blurr
             file_status = 4;
             decision = 2;
         }
-        const result = await updateOne(tbl_video_uploads, find, updateObj);
+        const result = await updateOne(tbl_video_uploads, find, { $set: updateObj });
 
         return result;
     } catch (error) {
@@ -147,11 +181,29 @@ const insertInitialFrameDetails = async (videoId, frameId) => {
     }
 }
 
+const updateFrameDetails = async (filter, updateDoc) => {
+    try {
+        const updateObj = {
+            $set: { 'nudity.nflag': 1, 'score': 67.98 },
+            $push: { 'nudity.details': { 'frame_time_in_sec': 45, 'lvl': 'full' } }
+
+        }
+
+        const updateRes = await updateOne(tableMap.frameTable, filter, updateObj)
+    } catch (error) {
+        console.error('Error in updateFrameDetails: ', error);
+        return null;
+    }
+}
+
+
+
 module.exports = {
     insertVideoInitialDetails,
     updateMongoSanity,
     insertOne,
     updateOne,
     insertMany,
-    insertInitialFrameDetails
+    insertInitialFrameDetails,
+    updateFrameDetails
 }

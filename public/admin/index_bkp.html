@@ -13,15 +13,14 @@
 <body>
 
   <h1>Past uploaded Videos</h1>
-  <table id="item-list">
+  <table id="item-list" style="border=2">
     <tr>
-            <td class="item-title">Video Id</td>
             <td class="item-title">File name</td>
-            <td class="item-title">Upload date</td>
+            <td class="item-description">Upload date</td>
             <td class="item-title">Decesion</td>
-            <td class="item-title">Issue Detected</td>
-            <td class="item-title">Confidence score</td>
-            <td class="item-title">Status</td>
+            <td class="item-description">Issue Detected</td>
+            <td class="item-title">File Name</td>
+            <td class="item-description">Status</td>
           </tr>
   </table>
 
@@ -57,7 +56,7 @@
           {
                 status = 'Completed';       
           }
-          decision = '';
+	  decision = '';
           if(item.decision == 0)
           {
                 decision = 'Pending';     
@@ -66,7 +65,7 @@
           {
                 decision = 'Approved';         
           }
-          else if(item.decision == 2)
+	  else if(item.decision == 2)
           {
                 decision = 'Rejected';         
           }
@@ -88,31 +87,10 @@
         {
                 issue = 'Contact Number';
         }
-        else if(item.detailed_issue_detected.empty == 1)
-        {
-                issue = 'Blank/empty frames';
-        }
-        else if(item.detailed_issue_detected.blurry == 1)
-        {
-                 issue = 'Blurry/out of Focus frames';
-        }
-        else if(item.detailed_issue_detected.audio != 'ok' && item.detailed_issue_detected.audio !== undefined)
-        {
-                issue = item.detailed_issue_detected.audio;
-        }
-        else if(item.detailed_issue_detected.cropping_needed == 1)
-        {
-                 issue = 'Video with Black bars';
-        }
-        else if(item.detailed_issue_detected.duplicate == 1)
-        {
-                issue = 'Duplicate video uploaded';
-        }
 
 
           li.innerHTML = `
-            <td class="item-description">${item._id}</td>
-            <td class="item-description">${item.filename}</td>
+            <td class="item-title">${item.filename}</td>
             <td class="item-description">${item.upload_date}</td>
             <td class="item-description">${decision}</td>
             <td class="item-description">${issue}</td>

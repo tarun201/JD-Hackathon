@@ -4,8 +4,8 @@ const tableMap = {
 }
 
 const rabbitMqQueues = {
-    framePreProcessing :'framePreProcessing', 
-    framePostProcessing: 'framePostProcessing'
+    framePreProcessing :'video_frames_input_queue', 
+    framePostProcessing: 'video_frames_output_queue'
 }
 
 const createframeInsertTemplate = (videoId, frameId) => {

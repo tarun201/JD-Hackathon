@@ -28,6 +28,44 @@
     const videoInput = document.getElementById('videoInput');
     const resultsContainer = document.getElementById('results');
 
+    let uploadIds = [];
+    let pollIntervalId = null;
+
+    async function pollStatus() {
+      if (!uploadIds.length) return;
+      const res = await fetch('/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uploadIds }),
+      });
+      const statusData = await res.json();
+      console.log({statusData});
+      let allDone = true;
+      statusData.statuses.forEach(item => {
+        const box = document.getElementById(`result-${item.uploadId}`);
+        if (item.status === 'done') {
+          box.innerHTML = `
+            <h2 class="text-xl font-semibold mb-2">Upload ID: ${item.uploadId}</h2>
+            <ul class="space-y-1 text-sm">
+              ${Object.entries(item.results).map(([check, result]) => {
+                const color = result === true || result === 'ok' || result === 'clear' || result === 'motion' || result === '16:9'
+                  ? 'text-green-600' : 'text-red-600';
+                return `<li><strong>${check}:</strong> <span class="${color}">${result}</span></li>`;
+              }).join('')}
+            </ul>
+          `;
+        } else {
+          allDone = false;
+          if (box) box.querySelector('p').innerText = '⏳ Checking...';
+        }
+      });
+
+      if (allDone && pollIntervalId) {
+        clearInterval(pollIntervalId);
+        pollIntervalId = null;
+      }
+    }
+
     uploadForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -38,39 +76,34 @@
       for (const file of files) {
         formData.append('videos', file);
       }
+      
+      resultsContainer.innerHTML = 'uploading...';
 
-      const response = await fetch(files.length === 1 ? '/upload' : '/upload-bulk', {
+      const response = await fetch('/upload-bulk', {
         method: 'POST',
         body: formData,
       });
 
       const data = await response.json();
-      resultsContainer.innerHTML = '';
 
-      if (files.length === 1) {
-        renderResult(data.file, data.results);
-      } else {
-        for (const fileName in data) {
-          renderResult(fileName, data[fileName]);
-        }
-      }
+      uploadIds = data.uploadIds || [data.uploadIds];
+
+      uploadIds.forEach(id => {
+        const resultBox = document.createElement('div');
+        resultBox.id = `result-${id}`;
+        resultBox.className = 'bg-white p-4 rounded-xl shadow';
+        resultBox.innerHTML = `<h2 class="text-xl font-semibold mb-2">Upload ID: ${id}</h2>
+                              <p class="text-sm text-gray-500">⏳ Checking...</p>`;
+        resultsContainer.appendChild(resultBox);
+      });
+
+      // Clear previous polling interval if any
+      if (pollIntervalId) clearInterval(pollIntervalId);
+
+      // Start polling
+      pollIntervalId = setInterval(pollStatus, 3000);
+      pollStatus(); // Call once immediately
     });
-
-    function renderResult(fileName, checks) {
-      const resultBox = document.createElement('div');
-      resultBox.className = 'bg-white p-4 rounded-xl shadow';
-
-      resultBox.innerHTML = `
-        <h2 class="text-xl font-semibold mb-2">${fileName}</h2>
-        <ul class="space-y-1 text-sm">
-          ${Object.entries(checks).map(([check, result]) => {
-            const color = result === true || result === 'ok' || result === 'clear' || result === 'motion' || result === '16:9' ? 'text-green-600' : 'text-red-600';
-            return `<li><strong>${check}:</strong> <span class="${color}">${result}</span></li>`;
-          }).join('')}
-        </ul>
-      `;
-      resultsContainer.appendChild(resultBox);
-    }
   </script>
 </body>
 </html>
