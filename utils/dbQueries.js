@@ -80,11 +80,17 @@ const updateOne = async (collection, query, pipeline) => {
 
 const findOneAndUpdate = async (collection, filter, pipeline, options) => {
     try {
+        const db = await getMongoDb();
         if (!options?.returnDocument) {
-            options.returnDocument = 'after';
+            options = {
+                ...options,
+                returnDocument: 'after'
+            };
         }
         const result = await db.collection(collection).findOneAndUpdate(filter, pipeline, options);
-        if (result.value) { // The updated document is in the 'value' property
+        // console.log('findOneAndUpdate result:', result);
+        
+        if (result?.value) { // The updated document is in the 'value' property
             console.log('Successfully updated and retrieved frame:');
             console.log(result.value);
             return result.value;
@@ -205,5 +211,6 @@ module.exports = {
     updateOne,
     insertMany,
     insertInitialFrameDetails,
-    updateFrameDetails
+    updateFrameDetails,
+    findOneAndUpdate
 }

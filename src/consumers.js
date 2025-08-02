@@ -1,5 +1,7 @@
+const { getObjectId } = require("../db/connection");
 const { getRabbitMQChannel } = require("../rabbitMq/connection");
-const { rabbitMqQueues } = require("../utils/lib");
+const { updateOne, findOneAndUpdate } = require("../utils/dbQueries");
+const { rabbitMqQueues, tableMap } = require("../utils/lib");
 
 
 async function startConsumer() {
@@ -21,7 +23,42 @@ async function startConsumer() {
                     const data = JSON.parse(messageContent); // Assuming messages are JSON
                     console.log('  Processing data:', data);
 
-                    
+                    const { input_data, moderation_results } = data
+                    const { totalCount, videoId, chunkId, url, lastChunk, start, end } = input_data
+
+                    const { nudity_detection, copyright_infringement_detection, fraud_detection, blur_detection } = moderation_results
+
+                    let doc = {}
+                    if (
+                        !nudity_detection?.explanation?.search('No') ||
+                        !fraud_detection?.explanation?.search('No') ||
+                        !copyright_infringement_detection?.explanation?.search('No') ||
+                        !blur_detection
+                    ) {
+                        await updateOne(tableMap.frameTable, { _id: chunkId }, { $set: { "raw": moderation_results } })
+                        doc = await findOneAndUpdate(tableMap.videoTable, { _id: getObjectId(videoId) }, { $set: { decision: 2, raw: { [`${start}-${end}`]: moderation_results } } })
+                    }
+
+                    if (lastChunk && doc?.processed_frame_cnt === totalCount) {
+                        await updateOne(tableMap.videoTable, { _id: getObjectId(videoId) }, { $set: { file_status: 4 } })
+                    }
+
+                    // const updateObjPush = {}
+                    // if (!nudity_detection?.explanation?.search('No nudity')) {
+                    //     updateObjPush.nudity.details = {
+                    //         frame_time_in_sec: `${start}-${end}`,
+                    //         lvl: nudity_detection?.sensitivity_level || '',
+                    //         score: nudity_detection?.confidence_score || 0
+                    //     }
+                    // }
+
+                    // if (!fraud_detection?.explanation?.search('No fraud')) {
+                    //     updateObjPush.nudity.details = {
+                    //         frame_time_in_sec: `${start}-${end}`,
+                    //         lvl: nudity_detection?.sensitivity_level || '',
+                    //         score: nudity_detection?.confidence_score || 0
+                    //     }
+                    // }
 
                     // If processing is successful
                     console.log('  Processing complete for message:', messageContent);
@@ -50,3 +87,6 @@ async function startConsumer() {
         process.exit(1);
     }
 }
+
+
+startConsumer()

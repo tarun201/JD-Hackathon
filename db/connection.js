@@ -31,7 +31,7 @@ const getMongoDb = async () => {
 const getObjectId = (id) => {
     if (!id) return new ObjectId();
 
-    return ObjectId(id);
+    return new ObjectId(id);
 }
 
 module.exports = {

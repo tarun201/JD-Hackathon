@@ -7,15 +7,16 @@ const ffmpegPath = require('ffmpeg-static');
 const { getVideoDuration, getFrameCount } = require('../utils/videoProcessing.js');
 const { getRabbitMQChannel, sendToQueue, runConsumer } = require('../rabbitMq/connection.js');
 const { createframeInsertTemplate, rabbitMqQueues, tableMap } = require('../utils/lib.js');
-const { insertMany } = require('../utils/dbQueries.js');
+const { insertMany, insertOne, updateOne } = require('../utils/dbQueries.js');
 const { uploadToS3, uploadVideoToS3 } = require('../utils/aws.js');
 const { processVideo } = require('../utils/videoConvertor.js');
+const { getObjectId } = require('../db/connection.js');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 
 
-const video = path.join(process.cwd(), 'app/uploads/test.mp4');;
+const video = path.join(process.cwd(), 'app/uploads/dirty.mp4');;
 const frameLimit = 5;
 
 async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId) {
@@ -135,9 +136,9 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId) {
         await getRabbitMQChannel();
 
 
-        const ogVideoId = '688e45c5ff84a90c518b5dfb'
+        const ogVideoId = '688ea38e943ed6d4066a2d0c';
 
-        const videoFolder = `/chunks/${ogVideoId}`;
+        const videoFolder = `/${ogVideoId}/`;
         const outputDir = path.join(process.cwd(), videoFolder);
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
@@ -145,11 +146,33 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId) {
 
         const videoChunks = await processVideo(video, outputDir, ogVideoId);
 
-        for (const chunk of videoChunks) {
-            const newChunkName = `${ogVideoId}_${path.basename(chunk)}`;
-            const res = await uploadVideoToS3(chunk, `group15/${path.basename(newChunkName)}`);
+        const length = videoChunks.length;
 
-            await sendToQueue(rabbitMqQueues.framePreProcessing, { videoId: ogVideoId, chunkId: newChunkName, url: res })
+
+        let idx = 0;
+        let lastChunk = false;
+        for (const chunk of videoChunks) {
+
+            const splitArr = chunk.split('_');
+            const time = splitArr[1];
+
+            const start = time;
+            const end = Number(time) + 10
+
+            const newChunkName = `${ogVideoId}_${path.basename(chunk)}`;
+
+            const insertObj = createframeInsertTemplate(ogVideoId, newChunkName);
+
+            await insertOne(tableMap.frameTable, insertObj);
+            const s3Url = await uploadVideoToS3(chunk, `group15/${path.basename(newChunkName)}`);
+            await updateOne(tableMap.videoTable, { _id: getObjectId(ogVideoId) }, { $set: { processed_frame_cnt: length, s3Url } });
+
+            if (idx === length - 1) {
+                lastChunk = true;
+            }
+
+            await sendToQueue(rabbitMqQueues.framePreProcessing, { start, end, totalCount: length, videoId: ogVideoId, chunkId: newChunkName, url: s3Url, lastChunk })
+            idx++;
         }
 
         console.log('All frames processed!');

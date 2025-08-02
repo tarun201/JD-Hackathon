@@ -58,7 +58,7 @@ async function chopVideoTo144pMp4ChunksSequential(inputPath, outputDir, videoId,
             try {
                 for (let start = 0; start < duration; start += chunkDuration) {
                     const actualDuration = (start + chunkDuration > duration) ? (duration - start) : chunkDuration;
-                    const outputPath = path.join(outputDir, `${videoId}_${start}.mp4`);
+                    const outputPath = path.join(outputDir, `${videoId}_${start}_.mp4`);
                     chunkFiles.push(outputPath);
                     // Await processing of this chunk before continuing to next
                     await new Promise((res, rej) => {
