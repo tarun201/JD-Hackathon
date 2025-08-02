@@ -4,36 +4,35 @@ const path = require('path');
 
 const ffmpegPath = require('ffmpeg-static');
 const { getVideoDuration, getFrameCount } = require('../utils/videoProcessing.js');
-const { getMongoDb } = require('../db/connection');
 const { getRabbitMQChannel, sendToQueue, runConsumer } = require('../rabbitMq/connection.js');
-// const ffprobePath = require('@ffprobe-installer/ffprobe').path;
+const { createframeInsertTemplate, rabbitMqQueues } = require('../utils/lib.js');
+const { insertMany } = require('../utils/dbQueries.js');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
-// ffmpeg.setFfprobePath(ffprobePath);
 
 const video = 'https://stream.jdmagicbox.com/comp/hls/9999p5872.5872.190119234430.h2z4_5ezohiqfh05xemh.m3u8'
 
 
 
-function detectSilentAudio(videoPath) {
-    return new Promise((resolve, reject) => {
-        let silenceDetected = [];
+// function detectSilentAudio(videoPath) {
+//     return new Promise((resolve, reject) => {
+//         let silenceDetected = [];
 
-        ffmpeg(videoPath)
-            .audioFilters('silencedetect=n=-50dB:d=0.5')
-            .format('null')
-            .on('stderr', (stderrLine) => {
-                if (stderrLine.includes('silence_start:')) {
-                    const match = stderrLine.match(/silence_start: ([\d\.]+)/);
-                    if (match) silenceDetected.push({ type: 'start', time: parseFloat(match[1]) });
-                }
-            })
-            .on('end', () => {
-                resolve({ isMostlySilent: silenceDetected.length > 0, silenceDetected });
-            })
-            .save('/dev/null'); // Use 'NUL' on Windows
-    });
-}
+//         ffmpeg(videoPath)
+//             .audioFilters('silencedetect=n=-50dB:d=0.5')
+//             .format('null')
+//             .on('stderr', (stderrLine) => {
+//                 if (stderrLine.includes('silence_start:')) {
+//                     const match = stderrLine.match(/silence_start: ([\d\.]+)/);
+//                     if (match) silenceDetected.push({ type: 'start', time: parseFloat(match[1]) });
+//                 }
+//             })
+//             .on('end', () => {
+//                 resolve({ isMostlySilent: silenceDetected.length > 0, silenceDetected });
+//             })
+//             .save('/dev/null'); // Use 'NUL' on Windows
+//     });
+// }
 
 // detectSilentAudio('testvideo.mp4').then(result => {
 //     console.log('Res: ', result);
@@ -50,7 +49,7 @@ function detectSilentAudio(videoPath) {
 // }
 
 
-async function extractFramesWithProcessing(inputPath, outputDir, fps, onFrameAsync) {
+async function extractFramesWithProcessing(inputPath, outputDir, fps, videoId, onFrameAsync) {
     // Ensure output directory exists
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
@@ -68,7 +67,10 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, onFrameAsy
             }
         }
 
-        const myid = 'testtttt'
+        let frameBatch = [];
+        let insertManyArr = [];
+
+        const myid = videoId || 'videoId'
 
         ffmpeg(inputPath)
             .outputOptions([`-vf`, `fps=${fps},showinfo`])
@@ -83,7 +85,9 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, onFrameAsy
                     const frameEpochMs = Math.round(timestamp * 1000);
 
                     const tempName = path.join(outputDir, `temp_${String(idx).padStart(6, '0')}.jpg`);
-                    const customName = path.join(outputDir, `${myid}_${frameEpochMs}.jpg`);
+
+                    const frameId = `${myid}_${String(idx)}_${frameEpochMs}.jpg`;
+                    const framePath = path.join(outputDir, frameId);
 
                     // const framePath = path.join(outputDir, `frame_${String(idx).padStart(6, '0')}.jpg`);
                     pending++;
@@ -92,8 +96,22 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, onFrameAsy
                         try {
                             if (fs.existsSync(tempName)) {
                                 // Rename temp file to custom-named file
-                                fs.renameSync(tempName, customName);
-                                await onFrameAsync(customName, idx, timestamp);
+                                fs.renameSync(tempName, frameId);
+
+                                const frameInsertObj = createframeInsertTemplate(videoId, frameId);
+
+                                insertManyArr.push(frameInsertObj)
+                                frameBatch.push({ videoId, "frame_id": frameId, "image": framePath })
+
+                                // Add to batch
+                                if (frameBatch.length === 40) {
+                                    await insertMany(insertManyArr)
+                                    await sendToQueue(rabbitMqQueues.framePreProcessing, { frames: frameBatch })
+                                    frameBatch = [];
+                                    insertManyArr = [];
+                                }
+
+
                             }
                         } catch (err) {
                             errors.push(err);
@@ -105,7 +123,13 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, onFrameAsy
                 }
             })
             .on('error', reject)
-            .on('end', () => {
+            .on('end', async () => {
+                if (frameBatch.length > 0) {
+                    await insertMany(insertManyArr)
+                    await sendToQueue(rabbitMqQueues.framePreProcessing, { frames: frameBatch })
+                    frameBatch = [];
+                    insertManyArr = [];
+                }
                 done = true;
                 checkDone();
             })
@@ -113,12 +137,6 @@ async function extractFramesWithProcessing(inputPath, outputDir, fps, onFrameAsy
     });
 }
 
-// Example async function to use per frame
-async function analyzeFrame(framePath, idx, timestamp) {
-    console.log(`Analyzing frame ${idx} at ${timestamp}s: ${framePath}`);
-    // Perform your async operation here (ML model, OpenCV, etc.)
-    await new Promise(res => setTimeout(res, 10000)); // Simulate async work
-}
 
 // Usage
 (async () => {
@@ -138,14 +156,12 @@ async function analyzeFrame(framePath, idx, timestamp) {
         // process.exit();
 
         const duration = await getVideoDuration(video);
-        // console.log('duration: ', duration);
-        console.log('frames: ', await getFrameCount(duration, fps));
-        const expectedFrames = Math.floor(duration * fps);
-        // console.log('expected: ', expectedFrames);
+        console.log('duration: ', duration);
 
-        // // await getFrameCount(video)
-        // // process.exit()
-        // await extractFramesWithProcessing(video, outputDir, fps, analyzeFrame);
+        const expectedFrameCount = await getFrameCount(duration, fps);
+        console.log('expected: ', expectedFrameCount);
+
+        await extractFramesWithProcessing(video, outputDir, fps, analyzeFrame);
         // console.log('All frames processed!');
     } catch (err) {
         console.error('Error:', err);

@@ -1,4 +1,4 @@
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 
 let db = null;
 
@@ -28,6 +28,13 @@ const getMongoDb = async () => {
     return db;
 };
 
+const getObjectId = (id) => {
+    if (!id) return new ObjectId();
+
+    return ObjectId(id);
+}
+
 module.exports = {
-    getMongoDb
+    getMongoDb,
+    getObjectId
 }

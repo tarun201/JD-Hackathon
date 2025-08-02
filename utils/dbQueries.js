@@ -1,7 +1,7 @@
 const { getMongoDb } = require("../db/connection");
 
 const tbl_video_uploads = 'tbl_video_uploads';
-const frameTable = ''
+const frameTable = 'tbl_video_frame_uploads';
 
 
 const findOne = async (collection, query) => {
@@ -32,6 +32,20 @@ const insertOne = async (collection, insertObj) => {
     }
 }
 
+const insertMany = async (collection, insertArr) => {
+    try {
+        const db = await getMongoDb();
+        const result = await db.collection(collection).insertMany(insertArr);
+        if (result?.insertedIds?.length) {
+            return result;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error in findone: ', error)
+        return null;
+    }
+}
+
 const updateOne = async (collection, query, setObj) => {
     try {
         const db = await getMongoDb();
@@ -50,8 +64,8 @@ const updateOne = async (collection, query, setObj) => {
 const insertVideoInitialDetails = async (filename, serverName) => {
     try {
         const obj = {
-            filename: { filename },
-            server_filename: { serverName },
+            filename: filename,
+            server_filename: serverName,
             filetype: 'video',
             upload_date: new date(),
             decision: 0,
@@ -114,13 +128,22 @@ const updateMongoSanity = async (failed, videoId, filehash, { blankFrames, blurr
     }
 }
 
-const insertFrameDetails = async () => {
+const insertInitialFrameDetails = async (videoId, frameId) => {
     try {
-        cosnt 
+        const res = await insertOne(frameTable, {
+            'video_ref_id': videoId,
+            '_id': frameId,
+            'score': 0,
+            'nudity': {},
+            'contact_number': {},
+            'branding': {},
+            'watermark': {}
+
+        })
     } catch (error) {
         console.error('Error in insertFrameDetails: ', error);
         return null;
-        
+
     }
 }
 
@@ -128,5 +151,7 @@ module.exports = {
     insertVideoInitialDetails,
     updateMongoSanity,
     insertOne,
-    updateOne
+    updateOne,
+    insertMany,
+    insertInitialFrameDetails
 }

@@ -35,7 +35,7 @@ const getRabbitMQChannel = async () => await connectToRabbitMQ();
 const sendToQueue = async (queue, message) => {
     try {
         const ch = await getRabbitMQChannel();
-        const res = await ch.sendToQueue(queue, Buffer.from(message))
+        const res = await ch.sendToQueue(queue, Buffer.from(JSON.stringify(message)))
         console.log('res: ', res);
         
     } catch (error) {
