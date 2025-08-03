@@ -88,6 +88,9 @@
 
       uploadIds = data.uploadIds || [data.uploadIds];
 
+      if(uploadIds) {
+        resultsContainer.innerHTML = '';
+      }
       uploadIds.forEach(id => {
         const resultBox = document.createElement('div');
         resultBox.id = `result-${id}`;

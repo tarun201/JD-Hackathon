@@ -1,5 +1,5 @@
 {
-  "name": "jd_hackathon",
+  "name": "video-checker",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -16,7 +16,9 @@
     "m3u8-to-mp4": "^1.0.0",
     "md5-file": "^5.0.0",
     "mongodb": "^6.18.0",
+    "mongoose": "^8.14.0",
     "multer": "^1.4.5-lts.1",
-    "sharp": "^0.34.3"
+    "sharp": "^0.34.3",
+    "cors": "^2.8.5" 
   }
 }

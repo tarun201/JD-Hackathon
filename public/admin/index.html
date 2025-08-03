@@ -58,11 +58,11 @@
                 status = 'Completed';       
           }
           decision = '';
-          if(item.decision == 0)
+          if(item.decision == 0 && item.file_status == 1)
           {
                 decision = 'Pending';     
           }
-          else if(item.decision == 1)
+          else if(item.decision == 0 && item.file_status == 4)
           {
                 decision = 'Approved';         
           }
@@ -72,23 +72,28 @@
           }
          
         issue='';
-        if(item.detailed_issue_detected.nudity !== undefined)
-        {
-                issue = 'Nudity';
-        }
-        else if(item.detailed_issue_detected.branding !== undefined)
-        {
-                issue = 'Branding';
-        }
-        else if(item.detailed_issue_detected.watermark !== undefined)
-        {
-                 issue = 'Watermark';
-        }
-        else if(item.detailed_issue_detected.contact_number !== undefined)
-        {
-                issue = 'Contact Number';
-        }
-        else if(item.detailed_issue_detected.empty == 1)
+	if(item.raw !== undefined)
+	{
+        	/*if(item.raw. !== undefined)
+        	{
+               		 issue = 'Nudity';
+        	}
+        	else if(item.detailed_issue_detected.branding !== undefined)
+        	{
+                	issue = 'Branding';
+        	}
+        	else if(item.detailed_issue_detected.watermark !== undefined)
+        	{
+                	 issue = 'Watermark';
+        	}
+        	else if(item.detailed_issue_detected.contact_number !== undefined)
+        	{
+                	issue = 'Contact Number';
+        	}*/
+		for()
+		
+	}
+        if(item.detailed_issue_detected.empty == 1)
         {
                 issue = 'Blank/empty frames';
         }
@@ -111,7 +116,7 @@
 
 
           li.innerHTML = `
-            <td class="item-description">${item._id}</td>
+            <td class="item-description"><a href="/detail?id=${item._id}">${item._id}</a></td>
             <td class="item-description">${item.filename}</td>
             <td class="item-description">${item.upload_date}</td>
             <td class="item-description">${decision}</td>

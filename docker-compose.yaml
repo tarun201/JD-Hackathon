@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: video-checker
+    privileged: true
+    network_mode: bridge
+    ports:
+      - "3030:3030"
+    volumes:
+      - ./uploads:/app/uploads  # ✅ Mount local ./uploads to container /app/uploads
+      - .:/app                  # (Optional) Live sync code for dev
+    tty: true
+    environment:
+      - NODE_ENV=development
+    command: node index.js  # ✅ So you don't need to rebuild each time
