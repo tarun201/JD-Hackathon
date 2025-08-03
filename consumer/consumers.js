@@ -36,7 +36,7 @@ async function startConsumer() {
                         !blur_detection
                     ) {
                         await updateOne(tableMap.frameTable, { _id: chunkId }, { $set: { "raw": moderation_results } })
-                        doc = await findOneAndUpdate(tableMap.videoTable, { _id: getObjectId(videoId) }, { $set: { decision: 2, raw: { [`${start}-${end}`]: moderation_results } } })
+                        doc = await findOneAndUpdate(tableMap.videoTable, { _id: getObjectId(videoId) }, { $set: { decision: 2 }, $push: { raw: { [`${start}-${end}`]: moderation_results } } })
                     }
 
                     if (lastChunk && doc?.processed_frame_cnt === totalCount) {
