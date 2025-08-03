@@ -42,6 +42,7 @@ async function startConsumer() {
                         await updateOne(tableMap.frameTable, { _id: chunkId }, { $set: { "raw": moderation_results } })
                         doc = await findOneAndUpdate(tableMap.videoTable, { _id: getObjectId(videoId) }, { $set: { decision: 2 }, $push: { raw: { [`${start}-${end}`]: moderation_results } } })
                     } else {
+                        await updateOne(tableMap.frameTable, { _id: chunkId }, { $set: { "raw": moderation_results } })
                         doc = await findOneAndUpdate(tableMap.videoTable, { _id: getObjectId(videoId) }, { $push: { raw: { [`${start}-${end}`]: moderation_results } } })
                     }
 
