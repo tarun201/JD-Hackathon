@@ -17,4 +17,4 @@ COPY . .
 
 EXPOSE 3032
 
-CMD ["node", "consumer.js"]
+CMD ["node", "consumers.js"]
