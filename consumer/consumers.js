@@ -1,7 +1,7 @@
-const { getObjectId } = require("../db/connection");
-const { getRabbitMQChannel } = require("../rabbitMq/connection");
-const { updateOne, findOneAndUpdate } = require("../utils/dbQueries");
-const { rabbitMqQueues, tableMap } = require("../utils/lib");
+const { getObjectId } = require("./db/connection");
+const { getRabbitMQChannel } = require("./rabbitMq/connection");
+const { updateOne, findOneAndUpdate } = require("./utils/dbQueries");
+const { rabbitMqQueues, tableMap } = require("./utils/lib");
 
 
 async function startConsumer() {
