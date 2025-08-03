@@ -2,7 +2,7 @@ const md5File = require('md5-file');
 const fs = require('fs');
 const path = require('path');
 
-const hashesPath = path.join(__dirname, '../hashes2.json');
+const hashesPath = path.join(__dirname, '../hashes3.json');
 let hashes = fs.existsSync(hashesPath) ? JSON.parse(fs.readFileSync(hashesPath)) : {};
 
 module.exports = async function checkDuplicate(filePath) {
