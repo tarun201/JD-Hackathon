@@ -67,6 +67,7 @@ const updateOne = async (collection, query, pipeline) => {
     try {
         const db = await getMongoDb();
         const result = await db.collection(collection).updateOne(query, pipeline);
+        console.log('UpdateOne: ', result);
         return {
             success: result?.acknowledged || false,
             modifiedCount: result?.modifiedCount || 0,

@@ -35,6 +35,7 @@ async function startConsumer() {
                         !copyright_infringement_detection?.explanation?.search('No') ||
                         !blur_detection
                     ) {
+                        console.log(!nudity_detection?.explanation?.search('No'), !fraud_detection?.explanation?.search('No'), !copyright_infringement_detection?.explanation?.search('No'), !blur_detection);
                         await updateOne(tableMap.frameTable, { _id: chunkId }, { $set: { "raw": moderation_results } })
                         doc = await findOneAndUpdate(tableMap.videoTable, { _id: getObjectId(videoId) }, { $set: { decision: 2 }, $push: { raw: { [`${start}-${end}`]: moderation_results } } })
                     }
