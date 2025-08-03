@@ -13,14 +13,13 @@
 <body>
 
   <h1>Past uploaded Videos</h1>
-  <table id="item-list">
+  <table id="item-list" style="border=2">
     <tr>
             <td class="item-title">Video Id</td>
             <td class="item-title">File name</td>
             <td class="item-title">Upload date</td>
             <td class="item-title">Decesion</td>
             <td class="item-title">Issue Detected</td>
-            <td class="item-title">Confidence score</td>
             <td class="item-title">Status</td>
           </tr>
   </table>
@@ -58,11 +57,11 @@
                 status = 'Completed';       
           }
           decision = '';
-          if(item.decision == 0 && item.file_status == 1)
+          if(item.decision == 0)
           {
                 decision = 'Pending';     
           }
-          else if(item.decision == 0 && item.file_status == 4)
+          else if(item.decision == 1)
           {
                 decision = 'Approved';         
           }
@@ -72,28 +71,23 @@
           }
          
         issue='';
-	if(item.raw !== undefined)
-	{
-        	/*if(item.raw. !== undefined)
-        	{
-               		 issue = 'Nudity';
-        	}
-        	else if(item.detailed_issue_detected.branding !== undefined)
-        	{
-                	issue = 'Branding';
-        	}
-        	else if(item.detailed_issue_detected.watermark !== undefined)
-        	{
-                	 issue = 'Watermark';
-        	}
-        	else if(item.detailed_issue_detected.contact_number !== undefined)
-        	{
-                	issue = 'Contact Number';
-        	}*/
-		for()
-		
-	}
-        if(item.detailed_issue_detected.empty == 1)
+        if(item.detailed_issue_detected.nudity !== undefined)
+        {
+                issue = 'Nudity';
+        }
+        else if(item.detailed_issue_detected.branding !== undefined)
+        {
+                issue = 'Branding';
+        }
+        else if(item.detailed_issue_detected.watermark !== undefined)
+        {
+                 issue = 'Watermark';
+        }
+        else if(item.detailed_issue_detected.contact_number !== undefined)
+        {
+                issue = 'Contact Number';
+        }
+        else if(item.detailed_issue_detected.empty == 1)
         {
                 issue = 'Blank/empty frames';
         }
@@ -116,12 +110,11 @@
 
 
           li.innerHTML = `
-            <td class="item-description"><a href="/detail?id=${item._id}">${item._id}</a></td>
+            <td class="item-description"><a href='/detail?id=${item._id}'>${item._id}</a></td>
             <td class="item-description">${item.filename}</td>
             <td class="item-description">${item.upload_date}</td>
             <td class="item-description">${decision}</td>
             <td class="item-description">${issue}</td>
-            <td class="item-description">${item.filename}</td>
             <td class="item-description">${status}</td>
           `;
           list.appendChild(li);
@@ -131,4 +124,7 @@
   </script>
 
 </body>
-</html>
+</html
+
+
+>

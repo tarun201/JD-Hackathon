@@ -110,8 +110,7 @@ fetch(`/details?id=${id}`)
 
       <p><strong>Detected issue:</strong> ${issue}</p>
       <p><strong>Confidence Score:</strong> ${(cntscore > 0 ? (avgscore / cntscore).toFixed(2) : 'N/A')}</p>
-      <p><strong>Raw Output:</strong> ${JSON.stringify(user.raw)}</p>
-     <p><strong>Details Output:</strong> ${JSON.stringify(user.detailed_issue_detected)}</p>
+      <p><strong>Raw Output:</strong> ${user.raw}</p>
     `;
   })
   .catch(err => {
